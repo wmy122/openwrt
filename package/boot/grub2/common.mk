@@ -19,34 +19,23 @@ PKG_HASH:=810b3798d316394f94096ec2797909dbf23c858e48f7b3830826b8daa06b7b0f
 
 PKG_FIXUP:=autoreconf
 HOST_BUILD_PARALLEL:=1
-PKG_BUILD_DEPENDS:=grub2/host
 
 PKG_SSP:=0
 
 PKG_FLAGS:=nonshared
 
+PATCH_DIR := ../patches
+HOST_PATCH_DIR := ../patches
+
 include $(INCLUDE_DIR)/host-build.mk
 include $(INCLUDE_DIR)/package.mk
 
-define Package/grub2
+define Package/grub2/Default
   CATEGORY:=Boot Loaders
   SECTION:=boot
   TITLE:=GRand Unified Bootloader
   URL:=http://www.gnu.org/software/grub/
   DEPENDS:=@TARGET_x86||TARGET_x86_64
-endef
-
-define Package/grub2-editenv
-  CATEGORY:=Utilities
-  SECTION:=utils
-  SUBMENU:=Boot Loaders
-  TITLE:=Grub2 Environment editor
-  URL:=http://www.gnu.org/software/grub/
-  DEPENDS:=@TARGET_x86||TARGET_x86_64
-endef
-
-define Package/grub2-editenv/description
-	Edit grub2 environment files.
 endef
 
 HOST_BUILD_PREFIX := $(STAGING_DIR_HOST)
@@ -83,11 +72,3 @@ define Host/Configure
 	$(Host/Configure/Default)
 endef
 
-define Package/grub2-editenv/install
-	$(INSTALL_DIR) $(1)/usr/sbin
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/grub-editenv $(1)/usr/sbin/
-endef
-
-$(eval $(call HostBuild))
-$(eval $(call BuildPackage,grub2))
-$(eval $(call BuildPackage,grub2-editenv))

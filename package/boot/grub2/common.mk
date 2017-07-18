@@ -8,12 +8,11 @@
 include $(TOPDIR)/rules.mk
 include $(INCLUDE_DIR)/kernel.mk
 
-PKG_NAME:=grub
 PKG_CPE_ID:=cpe:/a:gnu:grub2
 PKG_VERSION:=2.02
 PKG_RELEASE:=1
 
-PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
+PKG_SOURCE:=grub-$(PKG_VERSION).tar.xz
 PKG_SOURCE_URL:=@GNU/grub
 PKG_HASH:=810b3798d316394f94096ec2797909dbf23c858e48f7b3830826b8daa06b7b0f
 
@@ -26,6 +25,7 @@ PKG_FLAGS:=nonshared
 
 PATCH_DIR := ../patches
 HOST_PATCH_DIR := ../patches
+HOST_BUILD_DIR := $(BUILD_DIR_HOST)/$(PKG_NAME)-$(PKG_VERSION)
 
 include $(INCLUDE_DIR)/host-build.mk
 include $(INCLUDE_DIR)/package.mk

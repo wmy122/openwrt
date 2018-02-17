@@ -73,6 +73,48 @@ ifneq ($(CONFIG_GRUB_IMAGES)$(CONFIG_EFI_IMAGES),)
     $(subst $(SIGNATURE)-02,$2,$(call Image/cmdline/$(1)))
   endef
 
+# Support for secure boot, i.e. signing efi binaries
+
+  ifneq ($(CONFIG_EFI_SIGNED_BINARY),)
+
+  define Image/Sign/efi
+    cd $(TOPDIR) && \
+    echo "Checking certificate information" && \
+    openssl x509 -in $(CONFIG_EFI_SIGNING_PUBLIC_KEY) -text -noout && \
+    echo "Signing kernel" && \
+    sbsign --cert $(CONFIG_EFI_SIGNING_PUBLIC_KEY) \
+	    --key $(CONFIG_EFI_SIGNING_PRIVATE_KEY) \
+	    $(KDIR)/root.grub/boot/vmlinuz && \
+    rm -f $(KDIR)/root.grub/boot/vmlinuz && \
+    mv $(KDIR)/root.grub/boot/vmlinuz.signed $(KDIR)/root.grub/boot/vmlinuz && \
+    echo "Verifying kernel signature" && \
+    sbverify --list \
+	    $(KDIR)/root.grub/boot/vmlinuz && \
+    sbverify --cert $(CONFIG_EFI_SIGNING_PUBLIC_KEY) \
+	    $(KDIR)/root.grub/boot/vmlinuz && \
+    echo "Signing bootloader" && \
+    sbsign --cert $(CONFIG_EFI_SIGNING_PUBLIC_KEY) \
+	    --key $(CONFIG_EFI_SIGNING_PRIVATE_KEY) \
+	    $(KDIR)/grub2.efi/efi/boot/bootx64.efi && \
+    rm -f $(KDIR)/grub2.efi/efi/boot/bootx64.efi && \
+    mv $(KDIR)/grub2.efi/efi/boot/bootx64.efi.signed $(KDIR)/grub2.efi/efi/boot/bootx64.efi && \
+    echo "Verifying bootloader signature" && \
+    sbverify --list \
+	    $(KDIR)/grub2.efi/efi/boot/bootx64.efi && \
+    sbverify --cert $(CONFIG_EFI_SIGNING_PUBLIC_KEY) \
+	    $(KDIR)/grub2.efi/efi/boot/bootx64.efi && \
+    echo "Signing kernel and bootloader complete" && \
+    cd -
+  endef
+
+  else
+
+  define Image/Sign/efi
+    echo "Not signing efi binaries"
+  endef
+
+  endif
+
   define Image/Build/efi
 	# left here because the image builder doesnt need these
 	rm -rf $(KDIR)/root.grub/ || true
@@ -112,6 +154,9 @@ ifneq ($(CONFIG_GRUB_IMAGES)$(CONFIG_EFI_IMAGES),)
 		-p /efi/boot \
 		-c $(KDIR)/grub2.efi/efi/boot/grub.cfg \
 		$(GRUB2_MODULES_EFI)
+
+	# Sign efi binaries
+	$(call Image/Sign/efi)
 
 	# Generate the EFI VFAT bootfs
 	rm $(KDIR)/kernel.efi || true

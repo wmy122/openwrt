@@ -126,13 +126,12 @@ ifneq ($(CONFIG_GRUB_IMAGES)$(CONFIG_EFI_IMAGES),)
 		-e 's#@TERMINAL_CONFIG@#$(strip $(GRUB_TERMINAL_CONFIG))#g' \
 		-e 's#@CMDLINE@#$(strip $(call Image/cmdline/efi,$(1),$(EFI_SIGNATURE)) $(BOOTOPTS) $(GRUB_CONSOLE_CMDLINE))#g' \
 		-e 's#@TIMEOUT@#$(GRUB_TIMEOUT)#g' \
-		-e 's#set root.*#search --file /boot/grub/$(SIGNATURE).cfg --set=root#g' \
+		-e 's#set root.*#search --file /boot/grub/grub.cfg --set=root#g' \
 		./grub.cfg > $(KDIR)/root.grub/boot/grub/grub.cfg
 	sed \
 		-e 's/(hd0,msdos1)/(hd0,gpt1)/' ./grub-early.cfg > \
 			$(KDIR)/root.grub/boot/grub/grub-early.cfg
 
-	$(CP) $(KDIR)/root.grub/boot/grub/grub.cfg $(KDIR)/root.grub/boot/grub/$(SIGNATURE).cfg
 	grub-mkimage \
 		-d $(STAGING_DIR_HOST)/lib/grub/i386-pc \
 		-o $(KDIR)/grub2/core.img \
@@ -146,23 +145,22 @@ ifneq ($(CONFIG_GRUB_IMAGES)$(CONFIG_EFI_IMAGES),)
 	rm -rf $(KDIR)/grub2.efi/ || true
 	$(INSTALL_DIR) $(KDIR)/grub2.efi/efi/boot/
 
-	# Generate the grub search root config (grub will search for the $(SIGNATURE).cfg file placed on the boot partition as grub does not support search of GPT UUID yet)
-	echo "search --file /boot/grub/$(SIGNATURE).cfg --set=root" > $(KDIR)/grub2.efi/efi/boot/grub.cfg
-	echo "configfile /boot/grub/grub.cfg" >> $(KDIR)/grub2.efi/efi/boot/grub.cfg
-
 	# Create the EFI grub binary
 	grub-mkimage-efi \
 		-d $(STAGING_DIR_HOST)/lib/grub/x86_64-efi \
 		-o $(KDIR)/grub2.efi/efi/boot/bootx64.efi \
 		-O x86_64-efi \
 		-p /efi/boot \
-		-c $(KDIR)/grub2.efi/efi/boot/grub.cfg \
+		-c $(KDIR)/root.grub/boot/grub/grub-early.cfg \
 		$(GRUB2_MODULES_EFI)
+
+	# remove grub-early.cfg, since it has been embedded inside grub's core.img
+	rm -f $(KDIR)/root.grub/boot/grub/grub-early.cfg
 
 	# Sign efi binaries
 	$(call Image/Sign/efi)
 
-	# Generate the EFI VFAT bootfs
+	# Generate the EFI boot partition
 	rm $(KDIR)/kernel.efi || true
 	mkfs.fat -C $(KDIR)/kernel.efi -S 512 1024
 	mcopy -s -i "$(KDIR)/kernel.efi" $(KDIR)/grub2.efi/* ::/
@@ -175,13 +173,6 @@ ifneq ($(CONFIG_GRUB_IMAGES)$(CONFIG_EFI_IMAGES),)
 		$(CONFIG_TARGET_ROOTFS_PARTSIZE) $(KDIR)/root.$(1) \
 		256
 
-	# Setup legacy bios for hybrid MBR (optional)
-	grub-bios-setup \
-		--device-map="$(KDIR)/grub2/device.map" \
-		-d "$(KDIR)/grub2" \
-		-r "hd0,msdos1" \
-		"$(BIN_DIR)/$(IMG_PREFIX)-uefi-gpt-$(1).img"
-
 	# Convert the MBR partition to GPT and set EFI ROOTFS signature
 	dd if=/dev/zero of="$(BIN_DIR)/$(IMG_PREFIX)-uefi-gpt-$(1).img" bs=512 count=33 conv=notrunc oflag=append
 	sgdisk -g "$(BIN_DIR)/$(IMG_PREFIX)-uefi-gpt-$(1).img"
@@ -190,7 +181,7 @@ ifneq ($(CONFIG_GRUB_IMAGES)$(CONFIG_EFI_IMAGES),)
 	sgdisk -u 4:$(EFI_SIGNATURE) "$(BIN_DIR)/$(IMG_PREFIX)-uefi-gpt-$(1).img"
 	sgdisk -h "$(BIN_DIR)/$(IMG_PREFIX)-uefi-gpt-$(1).img"
 
-	# Setup EFI grub
+	# Setup legacy bios boot support
 	grub-bios-setup-efi \
 		--device-map="$(KDIR)/grub2/device.map" \
 		-d "$(KDIR)/grub2" \

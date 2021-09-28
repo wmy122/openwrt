@@ -16,6 +16,8 @@ world:
 
 DISTRO_PKG_CONFIG:=$(shell which -a pkg-config | grep -E '\/usr' | head -n 1)
 export PATH:=$(TOPDIR)/staging_dir/host/bin:$(PATH)
+#$(warning $(target/stamp-compile))
+#ls /root/tmp1
 
 ifneq ($(OPENWRT_BUILD),1)
   _SINGLE=export MAKEFLAGS=$(space);
